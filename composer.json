@@ -1,0 +1,45 @@
+{
+    "$schema": "https://getcomposer.org/schema.json",
+    "name": "openkos/payment-xendit",
+    "description": "Xendit Payment Session gateway for OpenKOS.",
+    "type": "library",
+    "license": "Apache-2.0",
+    "require": {
+        "php": "^8.3",
+        "illuminate/http": "^13.0",
+        "illuminate/support": "^13.0",
+        "openkos/platform": "^0.2"
+    },
+    "require-dev": {
+        "laravel/pint": "^1.29",
+        "orchestra/testbench": "^11.1",
+        "pestphp/pest": "^4.7",
+        "pestphp/pest-plugin-laravel": "^4.1"
+    },
+    "autoload": {
+        "psr-4": {
+            "OpenKOS\\PaymentXendit\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "pest --compact",
+        "lint": "pint"
+    },
+    "config": {
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    },
+    "extra": {
+        "openkos": {
+            "plugin": "OpenKOS\\PaymentXendit\\XenditPlugin"
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
