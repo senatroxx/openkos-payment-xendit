@@ -9,24 +9,21 @@ use OpenKOS\Core\Exceptions\PaymentWebhookVerificationException;
 use OpenKOS\PaymentXendit\XenditGateway;
 use OpenKOS\PaymentXendit\XenditPlugin;
 use OpenKOS\Platform\OpenKOSManager;
-use OpenKOS\Platform\Settings\SettingsManager;
 
 beforeEach(function () {
     $platform = app(OpenKOSManager::class);
     (new XenditPlugin)->register($platform);
 
-    $settings = app(SettingsManager::class);
-    $settings->set('xendit.api_key', 'xnd_test_key');
-    $settings->set('xendit.webhook_username', 'webhook-user');
-    $settings->set('xendit.webhook_password', 'webhook-pass');
-    $settings->set('xendit.base_url', 'https://api.xendit.test');
-
-    $this->gateway = new XenditGateway($settings);
+    $this->gateway = new XenditGateway([
+        'api_key' => 'xnd_test_key',
+        'webhook_username' => 'webhook-user',
+        'webhook_password' => 'webhook-pass',
+    ]);
 });
 
 it('creates an IDR Payment Session and returns hosted checkout instructions', function () {
     Http::fake([
-        'https://api.xendit.test/sessions' => Http::response([
+        'https://api.xendit.co/sessions' => Http::response([
             'payment_session_id' => 'ps-test-123',
             'reference_id' => 'invoice-123',
             'session_type' => 'PAY',
@@ -54,7 +51,7 @@ it('creates an IDR Payment Session and returns hosted checkout instructions', fu
     Http::assertSent(function ($request): bool {
         $payload = json_decode($request->body(), true);
 
-        return $request->url() === 'https://api.xendit.test/sessions'
+        return $request->url() === 'https://api.xendit.co/sessions'
             && ($request->headers()['Authorization'][0] ?? null) === 'Basic '.base64_encode('xnd_test_key:')
             && $payload === [
                 'reference_id' => 'invoice-123',
@@ -79,7 +76,7 @@ it('rejects currencies outside the IDR first version', function () {
 
 it('fails when Xendit rejects session creation', function () {
     Http::fake([
-        'https://api.xendit.test/sessions' => Http::response(['error_code' => 'INVALID_API_KEY'], 401),
+        'https://api.xendit.co/sessions' => Http::response(['error_code' => 'INVALID_API_KEY'], 401),
     ]);
 
     expect(fn () => $this->gateway->createPayment(new PaymentRequest(
@@ -166,3 +163,53 @@ it('rejects unsupported or malformed Payment Session webhooks', function (array 
         'currency' => 'USD',
     ]]],
 ]);
+
+it('omits blank descriptions', function () {
+    Http::fake([
+        'https://api.xendit.co/sessions' => Http::response([
+            'payment_session_id' => 'ps-test-123',
+            'reference_id' => 'invoice-123',
+            'session_type' => 'PAY',
+            'mode' => 'PAYMENT_LINK',
+            'status' => 'ACTIVE',
+            'amount' => 100,
+            'currency' => 'IDR',
+            'payment_link_url' => 'https://xen.to/test-123',
+        ], 201),
+    ]);
+
+    $this->gateway->createPayment(new PaymentRequest(
+        'invoice-123',
+        new Money(100, 'IDR'),
+        '   ',
+    ));
+
+    Http::assertSent(function ($request): bool {
+        $payload = json_decode($request->body(), true);
+
+        return ! array_key_exists('description', $payload);
+    });
+});
+
+it('rejects Xendit reference and metadata limits before making a request', function () {
+    Http::fake();
+
+    expect(fn () => $this->gateway->createPayment(new PaymentRequest(
+        str_repeat('r', 65),
+        new Money(100, 'IDR'),
+    )))->toThrow(InvalidArgumentException::class, '64 characters');
+
+    expect(fn () => $this->gateway->createPayment(new PaymentRequest(
+        'invoice-123',
+        new Money(100, 'IDR'),
+        metadata: [str_repeat('k', 41) => 'value'],
+    )))->toThrow(InvalidArgumentException::class, 'metadata keys');
+
+    expect(fn () => $this->gateway->createPayment(new PaymentRequest(
+        'invoice-123',
+        new Money(100, 'IDR'),
+        metadata: ['key' => str_repeat('v', 501)],
+    )))->toThrow(InvalidArgumentException::class, 'metadata values');
+
+    Http::assertNothingSent();
+});

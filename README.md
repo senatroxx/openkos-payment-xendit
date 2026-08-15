@@ -11,16 +11,17 @@ composer require openkos/payment-xendit
 ```
 
 OpenKOS discovers the plugin through Composer metadata and registers the
-`xendit` payment gateway. Configure these settings through the host
-application's settings abstraction:
+`xendit` payment gateway. Configure these fields on the host application's
+Payment Gateway settings page:
 
-- `xendit.api_key` — Xendit secret API key.
-- `xendit.webhook_username` — Basic-auth username configured for the Payment
+- `api_key` — Xendit secret API key.
+- `webhook_username` — Basic-auth username configured for the Payment
   Session webhook endpoint.
-- `xendit.webhook_password` — Basic-auth password configured for the Payment
+- `webhook_password` — Basic-auth password configured for the Payment
   Session webhook endpoint.
-- `xendit.base_url` — optional API base URL, defaulting to
-  `https://api.xendit.co`.
+
+OpenKOS stores these fields under the `xendit` gateway entry in its encrypted
+payment gateway configuration.
 
 The package is IDR-only for its first version. It returns Xendit's
 `payment_link_url` as the checkout URL and uses `payment_session_id` as the

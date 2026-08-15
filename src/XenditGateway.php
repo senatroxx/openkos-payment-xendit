@@ -15,7 +15,6 @@ use OpenKOS\Core\Data\Payment\PaymentWebhookRequest;
 use OpenKOS\Core\Data\Payment\PaymentWebhookResult;
 use OpenKOS\Core\Enums\PaymentStatus;
 use OpenKOS\Core\Exceptions\PaymentWebhookVerificationException;
-use OpenKOS\Platform\Settings\SettingsManager;
 use RuntimeException;
 use Throwable;
 
@@ -23,7 +22,10 @@ final class XenditGateway implements PaymentGateway
 {
     private const DEFAULT_BASE_URL = 'https://api.xendit.co';
 
-    public function __construct(private readonly SettingsManager $settings) {}
+    /**
+     * @param  array<string, mixed>  $config
+     */
+    public function __construct(private readonly array $config = []) {}
 
     public function key(): string
     {
@@ -41,7 +43,8 @@ final class XenditGateway implements PaymentGateway
             throw new InvalidArgumentException('Xendit payments currently support IDR only.');
         }
 
-        $apiKey = $this->requiredSetting('xendit.api_key');
+        $this->validateRequestLimits($request);
+        $apiKey = $this->requiredConfig('api_key');
         $payload = [
             'reference_id' => $request->reference,
             'session_type' => 'PAY',
@@ -52,7 +55,7 @@ final class XenditGateway implements PaymentGateway
             'allow_save_payment_method' => 'DISABLED',
         ];
 
-        if ($request->description !== null) {
+        if ($request->description !== null && trim($request->description) !== '') {
             $payload['description'] = $request->description;
         }
 
@@ -147,17 +150,16 @@ final class XenditGateway implements PaymentGateway
     {
         return [
             'api_key' => ['label' => 'API key', 'type' => 'password', 'required' => true],
-            'webhook_username' => ['label' => 'Payment Session webhook username', 'required' => true],
+            'webhook_username' => ['label' => 'Payment Session webhook username', 'type' => 'password', 'required' => true],
             'webhook_password' => ['label' => 'Payment Session webhook password', 'type' => 'password', 'required' => true],
-            'base_url' => ['label' => 'API base URL', 'default' => self::DEFAULT_BASE_URL],
         ];
     }
 
     private function verifyBasicAuthentication(PaymentWebhookRequest $request): void
     {
         $authorization = $this->header($request->headers, 'authorization');
-        $username = $this->setting('xendit.webhook_username');
-        $password = $this->setting('xendit.webhook_password');
+        $username = $this->configValue('webhook_username');
+        $password = $this->configValue('webhook_password');
 
         if ($authorization === null || $username === null || $password === null) {
             throw new PaymentWebhookVerificationException('Xendit webhook authentication is not configured.');
@@ -198,23 +200,44 @@ final class XenditGateway implements PaymentGateway
 
     private function endpoint(string $path): string
     {
-        return rtrim((string) ($this->setting('xendit.base_url') ?? self::DEFAULT_BASE_URL), '/').$path;
+        return self::DEFAULT_BASE_URL.$path;
     }
 
-    private function requiredSetting(string $key): string
+    private function validateRequestLimits(PaymentRequest $request): void
     {
-        $value = $this->setting($key);
+        if (strlen($request->reference) > 64) {
+            throw new InvalidArgumentException('Xendit payment references cannot exceed 64 characters.');
+        }
+
+        if (count($request->metadata) > 50) {
+            throw new InvalidArgumentException('Xendit payment metadata cannot contain more than 50 entries.');
+        }
+
+        foreach ($request->metadata as $key => $value) {
+            if (strlen($key) > 40) {
+                throw new InvalidArgumentException('Xendit payment metadata keys cannot exceed 40 characters.');
+            }
+
+            if (strlen((string) $value) > 500) {
+                throw new InvalidArgumentException('Xendit payment metadata values cannot exceed 500 characters.');
+            }
+        }
+    }
+
+    private function requiredConfig(string $key): string
+    {
+        $value = $this->configValue($key);
 
         if ($value === null || $value === '') {
-            throw new RuntimeException("Xendit setting [{$key}] is not configured.");
+            throw new RuntimeException("Xendit configuration [{$key}] is not configured.");
         }
 
         return $value;
     }
 
-    private function setting(string $key): ?string
+    private function configValue(string $key): ?string
     {
-        $value = $this->settings->get($key);
+        $value = $this->config[$key] ?? null;
 
         return is_string($value) && $value !== '' ? $value : null;
     }

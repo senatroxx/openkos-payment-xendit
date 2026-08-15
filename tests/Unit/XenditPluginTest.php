@@ -4,7 +4,7 @@ use OpenKOS\PaymentXendit\XenditGateway;
 use OpenKOS\PaymentXendit\XenditPlugin;
 use OpenKOS\Platform\OpenKOSManager;
 
-it('registers the Xendit gateway and its settings', function () {
+it('registers the Xendit gateway without platform settings', function () {
     $platform = app(OpenKOSManager::class);
     $plugin = new XenditPlugin;
 
@@ -12,12 +12,6 @@ it('registers the Xendit gateway and its settings', function () {
 
     expect($plugin->manifest()->id)->toBe('openkos/payment-xendit')
         ->and($platform->payments()->gateways()['xendit'])->toBe(XenditGateway::class)
-        ->and($platform->settings()->definitions())->toHaveKeys([
-            'xendit.api_key',
-            'xendit.webhook_username',
-            'xendit.webhook_password',
-            'xendit.base_url',
-        ])
-        ->and($platform->settings()->definitions()['xendit.api_key']->type)->toBe('encrypted')
-        ->and($platform->settings()->definitions()['xendit.webhook_password']->type)->toBe('encrypted');
+        ->and($platform->settings()->definitions())->toBe([])
+        ->and((new XenditGateway)->configurationSchema()['webhook_username']['type'])->toBe('password');
 });
