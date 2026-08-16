@@ -13,12 +13,22 @@ it('registers the Xendit gateway without platform settings', function () {
     $schema = (new XenditGateway)->configurationSchema();
 
     expect($plugin->manifest()->id)->toBe('openkos/payment-xendit')
-        ->and($plugin->manifest()->version)->toBe('0.1.1')
+        ->and($plugin->manifest()->version)->toBe('0.1.2')
         ->and($platform->payments()->gateways()['xendit'])->toBe(XenditGateway::class)
         ->and($platform->settings()->definitions())->toBe([])
+        ->and($schema['webhook_auth_mode']['presentation'])->toBe('segmented')
+        ->and($schema['webhook_auth_mode']['default'])->toBe('basic')
         ->and($schema['webhook_auth_mode']['options'])->toBe([
             ['value' => 'basic', 'label' => 'Basic Auth'],
             ['value' => 'token', 'label' => 'Callback token'],
+        ])
+        ->and($schema['webhook_username']['visible_when'])->toBe([
+            'field' => 'webhook_auth_mode',
+            'value' => 'basic',
+        ])
+        ->and($schema['webhook_token']['visible_when'])->toBe([
+            'field' => 'webhook_auth_mode',
+            'value' => 'token',
         ])
         ->and($schema['webhook_username']['type'])->toBe('password')
         ->and($schema['webhook_password']['type'])->toBe('password')
