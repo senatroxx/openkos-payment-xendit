@@ -13,15 +13,20 @@ it('registers the Xendit gateway without platform settings', function () {
     $schema = (new XenditGateway)->configurationSchema();
 
     expect($plugin->manifest()->id)->toBe('openkos/payment-xendit')
-        ->and($plugin->manifest()->version)->toBe('0.1.2')
+        ->and($plugin->manifest()->version)->toBe('0.1.3')
         ->and($platform->payments()->gateways()['xendit'])->toBe(XenditGateway::class)
         ->and($platform->settings()->definitions())->toBe([])
         ->and($schema['webhook_auth_mode']['presentation'])->toBe('segmented')
+        ->and($schema['webhook_auth_mode']['label'])->toBe('Webhook authentication')
         ->and($schema['webhook_auth_mode']['default'])->toBe('basic')
         ->and($schema['webhook_auth_mode']['options'])->toBe([
             ['value' => 'basic', 'label' => 'Basic Auth'],
             ['value' => 'token', 'label' => 'Callback token'],
         ])
+        ->and($schema['webhook_username']['label'])->toBe('Webhook username')
+        ->and($schema['webhook_username']['description'])->toBe('Enter your Secret API key as the username and leave the password field empty.')
+        ->and($schema['webhook_password']['label'])->toBe('Webhook password')
+        ->and($schema['webhook_token']['label'])->toBe('Webhook callback token')
         ->and($schema['webhook_username']['visible_when'])->toBe([
             'field' => 'webhook_auth_mode',
             'value' => 'basic',
