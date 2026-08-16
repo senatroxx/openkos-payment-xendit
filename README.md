@@ -16,7 +16,8 @@ Payment Gateway settings page:
 
 - `api_key` — Xendit secret API key.
 - `webhook_auth_mode` — `basic` or `token`. Existing configurations without
-  this field default to `basic`.
+  this field default to `basic`. The OpenKOS settings page renders this as a
+  segmented toggle.
 - `webhook_username` — Basic-auth username when `webhook_auth_mode` is `basic`.
 - `webhook_password` — Basic-auth password when `webhook_auth_mode` is `basic`.
 - `webhook_token` — Xendit callback token when `webhook_auth_mode` is `token`.

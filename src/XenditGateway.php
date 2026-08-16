@@ -158,14 +158,37 @@ final class XenditGateway implements PaymentGateway
             'webhook_auth_mode' => [
                 'label' => 'Payment Session webhook authentication',
                 'type' => 'select',
+                'presentation' => 'segmented',
+                'default' => self::WEBHOOK_AUTH_BASIC,
                 'options' => [
                     ['value' => self::WEBHOOK_AUTH_BASIC, 'label' => 'Basic Auth'],
                     ['value' => self::WEBHOOK_AUTH_TOKEN, 'label' => 'Callback token'],
                 ],
             ],
-            'webhook_username' => ['label' => 'Payment Session webhook username', 'type' => 'password'],
-            'webhook_password' => ['label' => 'Payment Session webhook password', 'type' => 'password'],
-            'webhook_token' => ['label' => 'Payment Session webhook callback token', 'type' => 'password'],
+            'webhook_username' => [
+                'label' => 'Payment Session webhook username',
+                'type' => 'password',
+                'visible_when' => [
+                    'field' => 'webhook_auth_mode',
+                    'value' => self::WEBHOOK_AUTH_BASIC,
+                ],
+            ],
+            'webhook_password' => [
+                'label' => 'Payment Session webhook password',
+                'type' => 'password',
+                'visible_when' => [
+                    'field' => 'webhook_auth_mode',
+                    'value' => self::WEBHOOK_AUTH_BASIC,
+                ],
+            ],
+            'webhook_token' => [
+                'label' => 'Payment Session webhook callback token',
+                'type' => 'password',
+                'visible_when' => [
+                    'field' => 'webhook_auth_mode',
+                    'value' => self::WEBHOOK_AUTH_TOKEN,
+                ],
+            ],
         ];
     }
 
