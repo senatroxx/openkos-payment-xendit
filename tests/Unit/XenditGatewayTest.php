@@ -5,6 +5,7 @@ use OpenKOS\Core\Data\Payment\Money;
 use OpenKOS\Core\Data\Payment\PaymentRequest;
 use OpenKOS\Core\Data\Payment\PaymentWebhookRequest;
 use OpenKOS\Core\Enums\PaymentStatus;
+use OpenKOS\Core\Exceptions\PaymentWebhookPayloadException;
 use OpenKOS\Core\Exceptions\PaymentWebhookVerificationException;
 use OpenKOS\PaymentXendit\XenditGateway;
 use OpenKOS\PaymentXendit\XenditPlugin;
@@ -145,11 +146,18 @@ it('rejects a Payment Session webhook with invalid basic authentication', functi
     )))->toThrow(PaymentWebhookVerificationException::class, 'authentication is invalid');
 });
 
+it('classifies authenticated invalid JSON as a malformed payload', function () {
+    expect(fn () => $this->gateway->handleCallback(new PaymentWebhookRequest(
+        rawBody: '{invalid-json',
+        headers: ['Authorization' => 'Basic '.base64_encode('webhook-user:webhook-pass')],
+    )))->toThrow(PaymentWebhookPayloadException::class, 'JSON is invalid');
+});
+
 it('rejects unsupported or malformed Payment Session webhooks', function (array $body) {
     expect(fn () => $this->gateway->handleCallback(new PaymentWebhookRequest(
         rawBody: json_encode($body, JSON_THROW_ON_ERROR),
         headers: ['Authorization' => 'Basic '.base64_encode('webhook-user:webhook-pass')],
-    )))->toThrow(PaymentWebhookVerificationException::class);
+    )))->toThrow(PaymentWebhookPayloadException::class);
 })->with([
     [['event' => 'payment.created', 'data' => []]],
     [['event' => 'payment_session.completed', 'data' => ['status' => 'COMPLETED']]],

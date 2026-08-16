@@ -14,6 +14,7 @@ use OpenKOS\Core\Data\Payment\PaymentRequest;
 use OpenKOS\Core\Data\Payment\PaymentWebhookRequest;
 use OpenKOS\Core\Data\Payment\PaymentWebhookResult;
 use OpenKOS\Core\Enums\PaymentStatus;
+use OpenKOS\Core\Exceptions\PaymentWebhookPayloadException;
 use OpenKOS\Core\Exceptions\PaymentWebhookVerificationException;
 use RuntimeException;
 use Throwable;
@@ -102,13 +103,13 @@ final class XenditGateway implements PaymentGateway
         $data = $body['data'] ?? null;
 
         if (! is_array($data)) {
-            throw new PaymentWebhookVerificationException('Xendit webhook data is invalid.');
+            throw new PaymentWebhookPayloadException('Xendit webhook data is invalid.');
         }
 
         $status = match ($event) {
             'payment_session.completed' => PaymentStatus::Settled,
             'payment_session.expired' => PaymentStatus::Expired,
-            default => throw new PaymentWebhookVerificationException('Unsupported Xendit webhook event.'),
+            default => throw new PaymentWebhookPayloadException('Unsupported Xendit webhook event.'),
         };
 
         $this->assertWebhookValue($data, 'session_type', 'PAY');
@@ -121,7 +122,7 @@ final class XenditGateway implements PaymentGateway
         $amount = $this->requiredInteger($data, 'amount', 'Xendit webhook', true);
 
         if ($currency !== 'IDR') {
-            throw new PaymentWebhookVerificationException('Xendit webhook currency is unsupported.');
+            throw new PaymentWebhookPayloadException('Xendit webhook currency is unsupported.');
         }
 
         $metadata = [];
@@ -188,11 +189,11 @@ final class XenditGateway implements PaymentGateway
         try {
             $body = json_decode($rawBody, true, 512, JSON_THROW_ON_ERROR);
         } catch (JsonException) {
-            throw new PaymentWebhookVerificationException('Xendit webhook JSON is invalid.');
+            throw new PaymentWebhookPayloadException('Xendit webhook JSON is invalid.');
         }
 
         if (! is_array($body)) {
-            throw new PaymentWebhookVerificationException('Xendit webhook JSON is invalid.');
+            throw new PaymentWebhookPayloadException('Xendit webhook JSON is invalid.');
         }
 
         return $body;
@@ -252,7 +253,7 @@ final class XenditGateway implements PaymentGateway
         if (! is_string($value) || $value === '') {
             $message = "{$source} field [{$key}] is invalid.";
             throw $webhook
-                ? new PaymentWebhookVerificationException($message)
+                ? new PaymentWebhookPayloadException($message)
                 : new RuntimeException($message);
         }
 
@@ -269,7 +270,7 @@ final class XenditGateway implements PaymentGateway
         if (! is_int($value) || $value < 1) {
             $message = "{$source} field [{$key}] is invalid.";
             throw $webhook
-                ? new PaymentWebhookVerificationException($message)
+                ? new PaymentWebhookPayloadException($message)
                 : new RuntimeException($message);
         }
 
@@ -292,7 +293,7 @@ final class XenditGateway implements PaymentGateway
     private function assertWebhookValue(array $body, string $key, string $expected): void
     {
         if (($body[$key] ?? null) !== $expected) {
-            throw new PaymentWebhookVerificationException("Xendit webhook field [{$key}] is invalid.");
+            throw new PaymentWebhookPayloadException("Xendit webhook field [{$key}] is invalid.");
         }
     }
 
@@ -305,7 +306,7 @@ final class XenditGateway implements PaymentGateway
         if (! is_string($value) || $value === '') {
             $message = "{$source} date is invalid.";
             throw $webhook
-                ? new PaymentWebhookVerificationException($message)
+                ? new PaymentWebhookPayloadException($message)
                 : new RuntimeException($message);
         }
 
@@ -314,7 +315,7 @@ final class XenditGateway implements PaymentGateway
         } catch (Throwable) {
             $message = "{$source} date is invalid.";
             throw $webhook
-                ? new PaymentWebhookVerificationException($message)
+                ? new PaymentWebhookPayloadException($message)
                 : new RuntimeException($message);
         }
     }
