@@ -146,6 +146,65 @@ it('rejects a Payment Session webhook with invalid basic authentication', functi
     )))->toThrow(PaymentWebhookVerificationException::class, 'authentication is invalid');
 });
 
+it('normalizes a Payment Session webhook with a callback token', function () {
+    $gateway = new XenditGateway([
+        'webhook_auth_mode' => 'token',
+        'webhook_token' => 'callback-token',
+    ]);
+
+    $result = $gateway->handleCallback(new PaymentWebhookRequest(
+        rawBody: json_encode([
+            'event' => 'payment_session.expired',
+            'data' => [
+                'payment_session_id' => 'ps-test-123',
+                'reference_id' => 'invoice-123',
+                'session_type' => 'PAY',
+                'mode' => 'PAYMENT_LINK',
+                'status' => 'EXPIRED',
+                'amount' => 150000,
+                'currency' => 'IDR',
+            ],
+        ], JSON_THROW_ON_ERROR),
+        headers: ['X-CALLBACK-TOKEN' => ['callback-token']],
+    ));
+
+    expect($result->status)->toBe(PaymentStatus::Expired)
+        ->and($result->providerReference)->toBe('ps-test-123');
+});
+
+it('rejects a Payment Session webhook with an invalid callback token', function () {
+    $gateway = new XenditGateway([
+        'webhook_auth_mode' => 'token',
+        'webhook_token' => 'callback-token',
+    ]);
+
+    expect(fn () => $gateway->handleCallback(new PaymentWebhookRequest(
+        rawBody: '{}',
+        headers: ['x-callback-token' => 'wrong-token'],
+    )))->toThrow(PaymentWebhookVerificationException::class, 'authentication is invalid');
+});
+
+it('rejects a Payment Session webhook when the callback token is not configured', function () {
+    $gateway = new XenditGateway([
+        'webhook_auth_mode' => 'token',
+    ]);
+
+    expect(fn () => $gateway->handleCallback(new PaymentWebhookRequest(
+        rawBody: '{}',
+        headers: ['x-callback-token' => 'callback-token'],
+    )))->toThrow(PaymentWebhookVerificationException::class, 'authentication is not configured');
+});
+
+it('rejects an unsupported webhook authentication mode', function () {
+    $gateway = new XenditGateway([
+        'webhook_auth_mode' => 'signature',
+    ]);
+
+    expect(fn () => $gateway->handleCallback(new PaymentWebhookRequest(
+        rawBody: '{}',
+    )))->toThrow(PaymentWebhookVerificationException::class, 'authentication mode is invalid');
+});
+
 it('classifies authenticated invalid JSON as a malformed payload', function () {
     expect(fn () => $this->gateway->handleCallback(new PaymentWebhookRequest(
         rawBody: '{invalid-json',

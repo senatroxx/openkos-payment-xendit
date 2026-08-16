@@ -23,6 +23,10 @@ final class XenditGateway implements PaymentGateway
 {
     private const DEFAULT_BASE_URL = 'https://api.xendit.co';
 
+    private const WEBHOOK_AUTH_BASIC = 'basic';
+
+    private const WEBHOOK_AUTH_TOKEN = 'token';
+
     /**
      * @param  array<string, mixed>  $config
      */
@@ -97,7 +101,7 @@ final class XenditGateway implements PaymentGateway
 
     public function handleCallback(PaymentWebhookRequest $request): PaymentWebhookResult
     {
-        $this->verifyBasicAuthentication($request);
+        $this->verifyWebhookAuthentication($request);
         $body = $this->decodeWebhook($request->rawBody);
         $event = $this->requiredString($body, 'event', 'Xendit webhook', true);
         $data = $body['data'] ?? null;
@@ -151,9 +155,27 @@ final class XenditGateway implements PaymentGateway
     {
         return [
             'api_key' => ['label' => 'API key', 'type' => 'password', 'required' => true],
-            'webhook_username' => ['label' => 'Payment Session webhook username', 'type' => 'password', 'required' => true],
-            'webhook_password' => ['label' => 'Payment Session webhook password', 'type' => 'password', 'required' => true],
+            'webhook_auth_mode' => [
+                'label' => 'Payment Session webhook authentication',
+                'type' => 'select',
+                'options' => [
+                    ['value' => self::WEBHOOK_AUTH_BASIC, 'label' => 'Basic Auth'],
+                    ['value' => self::WEBHOOK_AUTH_TOKEN, 'label' => 'Callback token'],
+                ],
+            ],
+            'webhook_username' => ['label' => 'Payment Session webhook username', 'type' => 'password'],
+            'webhook_password' => ['label' => 'Payment Session webhook password', 'type' => 'password'],
+            'webhook_token' => ['label' => 'Payment Session webhook callback token', 'type' => 'password'],
         ];
+    }
+
+    private function verifyWebhookAuthentication(PaymentWebhookRequest $request): void
+    {
+        match ($this->configValue('webhook_auth_mode') ?? self::WEBHOOK_AUTH_BASIC) {
+            self::WEBHOOK_AUTH_BASIC => $this->verifyBasicAuthentication($request),
+            self::WEBHOOK_AUTH_TOKEN => $this->verifyCallbackToken($request),
+            default => throw new PaymentWebhookVerificationException('Xendit webhook authentication mode is invalid.'),
+        };
     }
 
     private function verifyBasicAuthentication(PaymentWebhookRequest $request): void
@@ -177,6 +199,20 @@ final class XenditGateway implements PaymentGateway
 
         [$actualUsername, $actualPassword] = explode(':', $credentials, 2);
         if (! hash_equals($username, $actualUsername) || ! hash_equals($password, $actualPassword)) {
+            throw new PaymentWebhookVerificationException('Xendit webhook authentication is invalid.');
+        }
+    }
+
+    private function verifyCallbackToken(PaymentWebhookRequest $request): void
+    {
+        $actualToken = $this->header($request->headers, 'x-callback-token');
+        $expectedToken = $this->configValue('webhook_token');
+
+        if ($actualToken === null || $expectedToken === null) {
+            throw new PaymentWebhookVerificationException('Xendit webhook authentication is not configured.');
+        }
+
+        if (! hash_equals($expectedToken, $actualToken)) {
             throw new PaymentWebhookVerificationException('Xendit webhook authentication is invalid.');
         }
     }
