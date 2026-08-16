@@ -2495,16 +2495,16 @@
         },
         {
             "name": "openkos/platform",
-            "version": "0.2.0",
+            "version": "0.2.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/senatroxx/openkos-platform.git",
-                "reference": "6ac5694b98bb5df540ba70f720d1aed9fb9ea0a5"
+                "reference": "ec60811c333605b8132331b3386d3a2803d10025"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/senatroxx/openkos-platform/zipball/6ac5694b98bb5df540ba70f720d1aed9fb9ea0a5",
-                "reference": "6ac5694b98bb5df540ba70f720d1aed9fb9ea0a5",
+                "url": "https://api.github.com/repos/senatroxx/openkos-platform/zipball/ec60811c333605b8132331b3386d3a2803d10025",
+                "reference": "ec60811c333605b8132331b3386d3a2803d10025",
                 "shasum": ""
             },
             "require": {
@@ -2542,9 +2542,9 @@
             "description": "The OpenKOS platform and plugin SDK.",
             "support": {
                 "issues": "https://github.com/senatroxx/openkos-platform/issues",
-                "source": "https://github.com/senatroxx/openkos-platform/tree/v0.2.0"
+                "source": "https://github.com/senatroxx/openkos-platform/tree/v0.2.1"
             },
-            "time": "2026-08-14T15:43:47+00:00"
+            "time": "2026-08-16T07:00:49+00:00"
         },
         {
             "name": "phpoption/phpoption",
