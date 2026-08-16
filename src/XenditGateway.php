@@ -156,7 +156,7 @@ final class XenditGateway implements PaymentGateway
         return [
             'api_key' => ['label' => 'API key', 'type' => 'password', 'required' => true],
             'webhook_auth_mode' => [
-                'label' => 'Payment Session webhook authentication',
+                'label' => 'Webhook authentication',
                 'type' => 'select',
                 'presentation' => 'segmented',
                 'default' => self::WEBHOOK_AUTH_BASIC,
@@ -166,15 +166,16 @@ final class XenditGateway implements PaymentGateway
                 ],
             ],
             'webhook_username' => [
-                'label' => 'Payment Session webhook username',
+                'label' => 'Webhook username',
                 'type' => 'password',
+                'description' => 'Enter your Secret API key as the username and leave the password field empty.',
                 'visible_when' => [
                     'field' => 'webhook_auth_mode',
                     'value' => self::WEBHOOK_AUTH_BASIC,
                 ],
             ],
             'webhook_password' => [
-                'label' => 'Payment Session webhook password',
+                'label' => 'Webhook password',
                 'type' => 'password',
                 'visible_when' => [
                     'field' => 'webhook_auth_mode',
@@ -182,7 +183,7 @@ final class XenditGateway implements PaymentGateway
                 ],
             ],
             'webhook_token' => [
-                'label' => 'Payment Session webhook callback token',
+                'label' => 'Webhook callback token',
                 'type' => 'password',
                 'visible_when' => [
                     'field' => 'webhook_auth_mode',
