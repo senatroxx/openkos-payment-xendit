@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use OpenKOS\Core\Data\Payment\Money;
 use OpenKOS\Core\Data\Payment\PaymentRequest;
 use OpenKOS\Core\Data\Payment\PaymentWebhookRequest;
@@ -41,7 +42,7 @@ it('creates an IDR Payment Session and returns hosted checkout instructions', fu
         'invoice-123',
         new Money(150000, 'IDR'),
         'Rent invoice',
-        ['lease_id' => 'lease-123'],
+        ['lease_id' => 'lease-123', 'invoice_id' => 123, 'is_test' => true, 'unused' => null],
     ));
 
     expect($result->providerReference)->toBe('ps-test-123')
@@ -63,7 +64,11 @@ it('creates an IDR Payment Session and returns hosted checkout instructions', fu
                 'country' => 'ID',
                 'allow_save_payment_method' => 'DISABLED',
                 'description' => 'Rent invoice',
-                'metadata' => ['lease_id' => 'lease-123'],
+                'metadata' => [
+                    'lease_id' => 'lease-123',
+                    'invoice_id' => '123',
+                    'is_test' => 'true',
+                ],
             ];
     });
 });
@@ -76,14 +81,26 @@ it('rejects currencies outside the IDR first version', function () {
 });
 
 it('fails when Xendit rejects session creation', function () {
+    Log::spy();
     Http::fake([
-        'https://api.xendit.co/sessions' => Http::response(['error_code' => 'INVALID_API_KEY'], 401),
+        'https://api.xendit.co/sessions' => Http::response([
+            'error_code' => 'INVALID_API_KEY',
+            'message' => 'Invalid API key',
+        ], 401),
     ]);
 
     expect(fn () => $this->gateway->createPayment(new PaymentRequest(
         'invoice-123',
         new Money(100, 'IDR'),
-    )))->toThrow(RuntimeException::class, 'creation failed');
+    )))->toThrow(RuntimeException::class, 'HTTP 401: INVALID_API_KEY');
+
+    Log::shouldHaveReceived('warning')
+        ->once()
+        ->with('Xendit Payment Session creation failed.', [
+            'http_status' => 401,
+            'error_code' => 'INVALID_API_KEY',
+            'error_message' => 'Invalid API key',
+        ]);
 });
 
 it('normalizes a completed Payment Session webhook', function () {

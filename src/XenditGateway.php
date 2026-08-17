@@ -4,6 +4,7 @@ namespace OpenKOS\PaymentXendit;
 
 use DateTimeImmutable;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
 use JsonException;
 use OpenKOS\Core\Contracts\PaymentGateway;
@@ -64,8 +65,10 @@ final class XenditGateway implements PaymentGateway
             $payload['description'] = $request->description;
         }
 
-        if ($request->metadata !== []) {
-            $payload['metadata'] = $request->metadata;
+        $metadata = $this->normalizeMetadata($request->metadata);
+
+        if ($metadata !== []) {
+            $payload['metadata'] = $metadata;
         }
 
         $response = Http::withBasicAuth($apiKey, '')
@@ -76,7 +79,24 @@ final class XenditGateway implements PaymentGateway
         $body = $response->json();
 
         if (! $response->successful() || ! is_array($body)) {
-            throw new RuntimeException('Xendit Payment Session creation failed.');
+            $diagnostics = array_filter([
+                'http_status' => $response->status(),
+                'error_code' => is_scalar($body['error_code'] ?? null)
+                    ? (string) $body['error_code']
+                    : null,
+                'error_message' => is_scalar($body['message'] ?? null)
+                    ? (string) $body['message']
+                    : null,
+            ], static fn (mixed $value): bool => $value !== null && $value !== '');
+
+            Log::warning('Xendit Payment Session creation failed.', $diagnostics);
+
+            $detail = $diagnostics['error_code'] ?? $diagnostics['error_message'] ?? null;
+            $suffix = $detail === null
+                ? " (HTTP {$response->status()})"
+                : " (HTTP {$response->status()}: {$detail})";
+
+            throw new RuntimeException('Xendit Payment Session creation failed'.$suffix.'.');
         }
 
         $sessionId = $this->requiredString($body, 'payment_session_id', 'Xendit response');
@@ -164,6 +184,20 @@ final class XenditGateway implements PaymentGateway
                     ['value' => self::WEBHOOK_AUTH_BASIC, 'label' => 'Basic Auth'],
                     ['value' => self::WEBHOOK_AUTH_TOKEN, 'label' => 'Callback token'],
                 ],
+            ],
+            'webhook_setup' => [
+                'label' => 'Webhook setup',
+                'type' => 'info',
+                'instructions' => [
+                    'Open the Xendit webhook settings.',
+                    'Add the full webhook URL shown below.',
+                    'Enable Payment Session Completed and Payment Session Expired.',
+                ],
+                'link' => [
+                    'label' => 'Open Xendit webhook settings',
+                    'url' => 'https://dashboard.xendit.co/settings/developers#webhooks',
+                ],
+                'url' => '/api/webhooks/payment/xendit',
             ],
             'webhook_username' => [
                 'label' => 'Webhook username',
@@ -283,6 +317,27 @@ final class XenditGateway implements PaymentGateway
                 throw new InvalidArgumentException('Xendit payment metadata values cannot exceed 500 characters.');
             }
         }
+    }
+
+    /**
+     * @param  array<string, bool|int|string|null>  $metadata
+     * @return array<string, string>
+     */
+    private function normalizeMetadata(array $metadata): array
+    {
+        $normalized = [];
+
+        foreach ($metadata as $key => $value) {
+            if ($value === null) {
+                continue;
+            }
+
+            $normalized[$key] = is_bool($value)
+                ? ($value ? 'true' : 'false')
+                : (string) $value;
+        }
+
+        return $normalized;
     }
 
     private function requiredConfig(string $key): string

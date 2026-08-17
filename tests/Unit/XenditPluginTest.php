@@ -23,6 +23,18 @@ it('registers the Xendit gateway without platform settings', function () {
             ['value' => 'basic', 'label' => 'Basic Auth'],
             ['value' => 'token', 'label' => 'Callback token'],
         ])
+        ->and($schema['webhook_setup']['type'])->toBe('info')
+        ->and($schema['webhook_setup']['label'])->toBe('Webhook setup')
+        ->and($schema['webhook_setup']['instructions'])->toBe([
+            'Open the Xendit webhook settings.',
+            'Add the full webhook URL shown below.',
+            'Enable Payment Session Completed and Payment Session Expired.',
+        ])
+        ->and($schema['webhook_setup']['link'])->toBe([
+            'label' => 'Open Xendit webhook settings',
+            'url' => 'https://dashboard.xendit.co/settings/developers#webhooks',
+        ])
+        ->and($schema['webhook_setup']['url'])->toBe('/api/webhooks/payment/xendit')
         ->and($schema['webhook_username']['label'])->toBe('Webhook username')
         ->and($schema['webhook_username']['description'])->toBe('Enter your Secret API key as the username and leave the password field empty.')
         ->and($schema['webhook_password']['label'])->toBe('Webhook password')
