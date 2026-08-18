@@ -8,10 +8,13 @@ use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
 use JsonException;
 use OpenKOS\Core\Contracts\PaymentGateway;
+use OpenKOS\Core\Contracts\PaymentGatewayStatusLookup;
 use OpenKOS\Core\Data\Payment\CheckoutInstructions;
 use OpenKOS\Core\Data\Payment\Money;
 use OpenKOS\Core\Data\Payment\PaymentCreationResult;
+use OpenKOS\Core\Data\Payment\PaymentProviderResult;
 use OpenKOS\Core\Data\Payment\PaymentRequest;
+use OpenKOS\Core\Data\Payment\PaymentStatusLookupRequest;
 use OpenKOS\Core\Data\Payment\PaymentWebhookRequest;
 use OpenKOS\Core\Data\Payment\PaymentWebhookResult;
 use OpenKOS\Core\Enums\PaymentStatus;
@@ -20,7 +23,7 @@ use OpenKOS\Core\Exceptions\PaymentWebhookVerificationException;
 use RuntimeException;
 use Throwable;
 
-final class XenditGateway implements PaymentGateway
+final class XenditGateway implements PaymentGateway, PaymentGatewayStatusLookup
 {
     private const DEFAULT_BASE_URL = 'https://api.xendit.co';
 
@@ -74,6 +77,8 @@ final class XenditGateway implements PaymentGateway
         $response = Http::withBasicAuth($apiKey, '')
             ->acceptJson()
             ->asJson()
+            ->connectTimeout(5)
+            ->timeout(15)
             ->post($this->endpoint('/sessions'), $payload);
 
         $body = $response->json();
@@ -116,6 +121,63 @@ final class XenditGateway implements PaymentGateway
             ),
             expiresAt: $this->optionalDate($body['expires_at'] ?? null, 'Xendit response'),
             metadata: ['session_type' => 'PAY', 'mode' => 'PAYMENT_LINK'],
+        );
+    }
+
+    public function lookupPaymentStatus(PaymentStatusLookupRequest $request): PaymentProviderResult
+    {
+        $apiKey = $this->requiredConfig('api_key');
+        $response = Http::withBasicAuth($apiKey, '')
+            ->acceptJson()
+            ->connectTimeout(5)
+            ->timeout(15)
+            ->retry(2, fn (int $attempt): int => 100 * (2 ** ($attempt - 1)), throw: false)
+            ->get($this->endpoint('/sessions/'.rawurlencode($request->providerReference)));
+        $body = $response->json();
+
+        if (! $response->successful() || ! is_array($body)) {
+            $diagnostics = array_filter([
+                'http_status' => $response->status(),
+                'error_code' => is_scalar($body['error_code'] ?? null)
+                    ? (string) $body['error_code']
+                    : null,
+            ], static fn (mixed $value): bool => $value !== null && $value !== '');
+
+            Log::warning('Xendit Payment Session status lookup failed.', $diagnostics);
+
+            throw new RuntimeException('Xendit Payment Session status lookup failed.');
+        }
+
+        $sessionId = $this->requiredString($body, 'payment_session_id', 'Xendit response');
+        $this->assertResponseValue($body, 'payment_session_id', $request->providerReference);
+        $reference = $this->requiredString($body, 'reference_id', 'Xendit response');
+
+        if ($request->reference !== null && $reference !== $request->reference) {
+            throw new RuntimeException('Xendit response reference does not match the payment attempt.');
+        }
+
+        $this->assertResponseValue($body, 'session_type', 'PAY');
+        $this->assertResponseValue($body, 'mode', 'PAYMENT_LINK');
+        $currency = $this->requiredString($body, 'currency', 'Xendit response');
+        $amount = $this->requiredInteger($body, 'amount', 'Xendit response');
+        $providerStatus = $this->requiredString($body, 'status', 'Xendit response');
+        $status = $this->normalizeSessionStatus($providerStatus);
+        $updated = $this->optionalDate($body['updated'] ?? null, 'Xendit response');
+        $metadata = ['provider_status' => $providerStatus];
+
+        foreach (['payment_id', 'payment_request_id', 'payment_token_id'] as $key) {
+            if (isset($body[$key]) && is_scalar($body[$key])) {
+                $metadata[$key] = $body[$key];
+            }
+        }
+
+        return new PaymentProviderResult(
+            providerReference: $sessionId,
+            status: $status,
+            reference: $reference,
+            amount: new Money($amount, $currency),
+            occurredAt: $updated,
+            metadata: $metadata,
         );
     }
 
@@ -317,6 +379,17 @@ final class XenditGateway implements PaymentGateway
                 throw new InvalidArgumentException('Xendit payment metadata values cannot exceed 500 characters.');
             }
         }
+    }
+
+    private function normalizeSessionStatus(string $status): PaymentStatus
+    {
+        return match ($status) {
+            'ACTIVE' => PaymentStatus::Pending,
+            'COMPLETED' => PaymentStatus::Settled,
+            'EXPIRED' => PaymentStatus::Expired,
+            'CANCELED' => PaymentStatus::Canceled,
+            default => throw new RuntimeException('Xendit response session status is unsupported.'),
+        };
     }
 
     /**
