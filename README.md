@@ -40,6 +40,12 @@ Basic Auth uses the configured username and password; token mode uses the
 `x-callback-token` value from Xendit's Webhook settings. Webhook state remains
 authoritative for payment settlement; browser redirects are not trusted.
 
+The package also implements the optional platform status-lookup capability.
+OpenKOS checks GET /sessions/{payment_session_id} for stale or uncertain
+attempts and maps ACTIVE, COMPLETED, EXPIRED, and CANCELED to the platform
+payment statuses. Webhooks and status lookups use the same persisted attempt
+and accounting flow in the host application.
+
 See Xendit's [Create a session](https://docs.xendit.co/apidocs/create-session)
 and [Payment Session webhook](https://docs.xendit.co/apidocs/webhook-notification-sent-defined-webhook-url-updates-payment-session)
 references for provider configuration.

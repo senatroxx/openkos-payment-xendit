@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use OpenKOS\Core\Data\Payment\Money;
 use OpenKOS\Core\Data\Payment\PaymentRequest;
+use OpenKOS\Core\Data\Payment\PaymentStatusLookupRequest;
 use OpenKOS\Core\Data\Payment\PaymentWebhookRequest;
 use OpenKOS\Core\Enums\PaymentStatus;
 use OpenKOS\Core\Exceptions\PaymentWebhookPayloadException;
@@ -71,6 +72,76 @@ it('creates an IDR Payment Session and returns hosted checkout instructions', fu
                 ],
             ];
     });
+});
+
+it('looks up an active Payment Session without requiring a webhook identity', function () {
+    Http::fake([
+        'https://api.xendit.co/sessions/ps-test-123' => Http::response([
+            'payment_session_id' => 'ps-test-123',
+            'reference_id' => 'invoice-123',
+            'session_type' => 'PAY',
+            'mode' => 'PAYMENT_LINK',
+            'status' => 'ACTIVE',
+            'amount' => 150000,
+            'currency' => 'IDR',
+            'updated' => '2026-08-15T01:02:03Z',
+        ]),
+    ]);
+
+    $result = $this->gateway->lookupPaymentStatus(new PaymentStatusLookupRequest(
+        providerReference: 'ps-test-123',
+        reference: 'invoice-123',
+    ));
+
+    expect($result->eventReference)->toBeNull()
+        ->and($result->status)->toBe(PaymentStatus::Pending)
+        ->and($result->reference)->toBe('invoice-123')
+        ->and($result->metadata['provider_status'])->toBe('ACTIVE');
+
+    Http::assertSent(fn ($request): bool => $request->url() === 'https://api.xendit.co/sessions/ps-test-123'
+        && ($request->headers()['Authorization'][0] ?? null) === 'Basic '.base64_encode('xnd_test_key:'));
+});
+
+it('normalizes terminal Payment Session status lookups', function (string $providerStatus, PaymentStatus $status) {
+    Http::fake([
+        'https://api.xendit.co/sessions/ps-test-123' => Http::response([
+            'payment_session_id' => 'ps-test-123',
+            'reference_id' => 'invoice-123',
+            'session_type' => 'PAY',
+            'mode' => 'PAYMENT_LINK',
+            'status' => $providerStatus,
+            'amount' => 150000,
+            'currency' => 'IDR',
+        ]),
+    ]);
+
+    expect($this->gateway->lookupPaymentStatus(new PaymentStatusLookupRequest(
+        providerReference: 'ps-test-123',
+        reference: 'invoice-123',
+    ))->status)->toBe($status);
+})->with([
+    ['COMPLETED', PaymentStatus::Settled],
+    ['EXPIRED', PaymentStatus::Expired],
+    ['CANCELED', PaymentStatus::Canceled],
+]);
+
+it('rejects a Payment Session lookup with a mismatched reference', function () {
+    Http::fake([
+        'https://api.xendit.co/sessions/ps-test-123' => Http::response([
+            'payment_session_id' => 'ps-test-123',
+            'reference_id' => 'other-invoice',
+            'session_type' => 'PAY',
+            'mode' => 'PAYMENT_LINK',
+            'status' => 'ACTIVE',
+            'amount' => 150000,
+            'currency' => 'IDR',
+        ]),
+    ]);
+
+    expect(fn () => $this->gateway->lookupPaymentStatus(new PaymentStatusLookupRequest(
+        providerReference: 'ps-test-123',
+        reference: 'invoice-123',
+    )))->toThrow(RuntimeException::class, 'does not match');
 });
 
 it('rejects currencies outside the IDR first version', function () {
