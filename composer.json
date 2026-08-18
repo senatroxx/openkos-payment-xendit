@@ -37,7 +37,12 @@
     },
     "extra": {
         "openkos": {
-            "plugin": "OpenKOS\\PaymentXendit\\XenditPlugin"
+            "plugin": "OpenKOS\\PaymentXendit\\XenditPlugin",
+            "capabilities": {
+                "payment_gateways": [
+                    "xendit"
+                ]
+            }
         }
     },
     "minimum-stability": "stable",
