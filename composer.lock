@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "b2ed65203b314433397c29a5a7173042",
+    "content-hash": "ab10ea072d43cb6d6d698a9da0ddadff",
     "packages": [
         {
             "name": "brick/math",
@@ -2495,16 +2495,16 @@
         },
         {
             "name": "openkos/platform",
-            "version": "0.2.1",
+            "version": "0.2.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/senatroxx/openkos-platform.git",
-                "reference": "ec60811c333605b8132331b3386d3a2803d10025"
+                "reference": "e205d385b086a29db98441e961c271b54cd891fe"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/senatroxx/openkos-platform/zipball/ec60811c333605b8132331b3386d3a2803d10025",
-                "reference": "ec60811c333605b8132331b3386d3a2803d10025",
+                "url": "https://api.github.com/repos/senatroxx/openkos-platform/zipball/e205d385b086a29db98441e961c271b54cd891fe",
+                "reference": "e205d385b086a29db98441e961c271b54cd891fe",
                 "shasum": ""
             },
             "require": {
@@ -2542,9 +2542,9 @@
             "description": "The OpenKOS platform and plugin SDK.",
             "support": {
                 "issues": "https://github.com/senatroxx/openkos-platform/issues",
-                "source": "https://github.com/senatroxx/openkos-platform/tree/v0.2.1"
+                "source": "https://github.com/senatroxx/openkos-platform/tree/v0.2.3"
             },
-            "time": "2026-08-16T07:00:49+00:00"
+            "time": "2026-08-24T04:26:34+00:00"
         },
         {
             "name": "phpoption/phpoption",
