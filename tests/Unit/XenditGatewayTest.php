@@ -74,6 +74,24 @@ it('creates an IDR Payment Session and returns hosted checkout instructions', fu
     });
 });
 
+it('declares the documented Payment Session currency set', function () {
+    expect($this->gateway->supportedCurrencies())->toBe(['IDR', 'PHP', 'VND', 'THB', 'SGD', 'MYR', 'USD'])
+        ->and($this->gateway->supportsCurrency('idr'))->toBeTrue()
+        ->and($this->gateway->supportsCurrency('USD'))->toBeTrue()
+        ->and($this->gateway->supportsCurrency('AUD'))->toBeFalse();
+});
+
+it('rejects unsupported currencies before making a request', function () {
+    Http::fake();
+
+    expect(fn () => $this->gateway->createPayment(new PaymentRequest(
+        'invoice-123',
+        new Money(100, 'AUD'),
+    )))->toThrow(InvalidArgumentException::class, 'does not support this payment currency');
+
+    Http::assertNothingSent();
+});
+
 it('looks up an active Payment Session without requiring a webhook identity', function () {
     Http::fake([
         'https://api.xendit.co/sessions/ps-test-123' => Http::response([
@@ -144,11 +162,30 @@ it('rejects a Payment Session lookup with a mismatched reference', function () {
     )))->toThrow(RuntimeException::class, 'does not match');
 });
 
-it('rejects currencies outside the IDR first version', function () {
+it('rejects a status response with an unsupported currency', function () {
+    Http::fake([
+        'https://api.xendit.co/sessions/ps-test-123' => Http::response([
+            'payment_session_id' => 'ps-test-123',
+            'reference_id' => 'invoice-123',
+            'session_type' => 'PAY',
+            'mode' => 'PAYMENT_LINK',
+            'status' => 'ACTIVE',
+            'amount' => 100,
+            'currency' => 'AUD',
+        ]),
+    ]);
+
+    expect(fn () => $this->gateway->lookupPaymentStatus(new PaymentStatusLookupRequest(
+        providerReference: 'ps-test-123',
+        reference: 'invoice-123',
+    )))->toThrow(RuntimeException::class, 'currency is unsupported');
+});
+
+it('rejects currencies outside Payment Session support', function () {
     expect(fn () => $this->gateway->createPayment(new PaymentRequest(
         'invoice-123',
-        new Money(100, 'PHP'),
-    )))->toThrow(InvalidArgumentException::class, 'IDR only');
+        new Money(100, 'AUD'),
+    )))->toThrow(InvalidArgumentException::class, 'does not support this payment currency');
 });
 
 it('fails when Xendit rejects session creation', function () {
@@ -315,7 +352,7 @@ it('rejects unsupported or malformed Payment Session webhooks', function (array 
         'mode' => 'PAYMENT_LINK',
         'status' => 'COMPLETED',
         'amount' => 150000,
-        'currency' => 'USD',
+        'currency' => 'AUD',
     ]]],
 ]);
 

@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
 use JsonException;
 use OpenKOS\Core\Contracts\PaymentGateway;
+use OpenKOS\Core\Contracts\PaymentGatewayCurrencySupport;
 use OpenKOS\Core\Contracts\PaymentGatewayStatusLookup;
 use OpenKOS\Core\Data\Payment\CheckoutInstructions;
 use OpenKOS\Core\Data\Payment\Money;
@@ -23,9 +24,11 @@ use OpenKOS\Core\Exceptions\PaymentWebhookVerificationException;
 use RuntimeException;
 use Throwable;
 
-final class XenditGateway implements PaymentGateway, PaymentGatewayStatusLookup
+final class XenditGateway implements PaymentGateway, PaymentGatewayCurrencySupport, PaymentGatewayStatusLookup
 {
     private const DEFAULT_BASE_URL = 'https://api.xendit.co';
+
+    private const SUPPORTED_CURRENCIES = ['IDR', 'PHP', 'VND', 'THB', 'SGD', 'MYR', 'USD'];
 
     private const WEBHOOK_AUTH_BASIC = 'basic';
 
@@ -46,10 +49,23 @@ final class XenditGateway implements PaymentGateway, PaymentGatewayStatusLookup
         return 'Xendit';
     }
 
+    public function supportsCurrency(string $currency): bool
+    {
+        return in_array(strtoupper(trim($currency)), self::SUPPORTED_CURRENCIES, true);
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function supportedCurrencies(): array
+    {
+        return self::SUPPORTED_CURRENCIES;
+    }
+
     public function createPayment(PaymentRequest $request): PaymentCreationResult
     {
-        if ($request->amount->currency !== 'IDR') {
-            throw new InvalidArgumentException('Xendit payments currently support IDR only.');
+        if (! $this->supportsCurrency($request->amount->currency)) {
+            throw new InvalidArgumentException('Xendit does not support this payment currency.');
         }
 
         $this->validateRequestLimits($request);
@@ -59,7 +75,7 @@ final class XenditGateway implements PaymentGateway, PaymentGatewayStatusLookup
             'session_type' => 'PAY',
             'mode' => 'PAYMENT_LINK',
             'amount' => $request->amount->minorUnits,
-            'currency' => 'IDR',
+            'currency' => $request->amount->currency,
             'country' => 'ID',
             'allow_save_payment_method' => 'DISABLED',
         ];
@@ -109,7 +125,7 @@ final class XenditGateway implements PaymentGateway, PaymentGatewayStatusLookup
         $this->assertResponseValue($body, 'session_type', 'PAY');
         $this->assertResponseValue($body, 'mode', 'PAYMENT_LINK');
         $this->assertResponseValue($body, 'status', 'ACTIVE');
-        $this->assertResponseValue($body, 'currency', 'IDR');
+        $this->assertResponseValue($body, 'currency', $request->amount->currency);
         $this->assertResponseValue($body, 'amount', $request->amount->minorUnits);
 
         return new PaymentCreationResult(
@@ -159,6 +175,11 @@ final class XenditGateway implements PaymentGateway, PaymentGatewayStatusLookup
         $this->assertResponseValue($body, 'session_type', 'PAY');
         $this->assertResponseValue($body, 'mode', 'PAYMENT_LINK');
         $currency = $this->requiredString($body, 'currency', 'Xendit response');
+
+        if (! $this->supportsCurrency($currency)) {
+            throw new RuntimeException('Xendit response currency is unsupported.');
+        }
+
         $amount = $this->requiredInteger($body, 'amount', 'Xendit response');
         $providerStatus = $this->requiredString($body, 'status', 'Xendit response');
         $status = $this->normalizeSessionStatus($providerStatus);
@@ -207,7 +228,7 @@ final class XenditGateway implements PaymentGateway, PaymentGatewayStatusLookup
         $currency = $this->requiredString($data, 'currency', 'Xendit webhook', true);
         $amount = $this->requiredInteger($data, 'amount', 'Xendit webhook', true);
 
-        if ($currency !== 'IDR') {
+        if (! $this->supportsCurrency($currency)) {
             throw new PaymentWebhookPayloadException('Xendit webhook currency is unsupported.');
         }
 

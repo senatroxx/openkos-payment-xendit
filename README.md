@@ -25,9 +25,13 @@ Payment Gateway settings page:
 OpenKOS stores these fields under the `xendit` gateway entry in its encrypted
 payment gateway configuration.
 
-The package is IDR-only for its first version. It returns Xendit's
-`payment_link_url` as the checkout URL and uses `payment_session_id` as the
-provider reference.
+The package currently advertises IDR only through the optional platform
+currency capability. Xendit's Payment Session API documents additional
+currencies, but the supported currency set depends on the transaction country,
+merchant account, and enabled payment channels. This plugin keeps the
+existing Indonesia Payment Session flow conservative until broader account
+support is verified. It returns Xendit's `payment_link_url` as the checkout URL
+and uses `payment_session_id` as the provider reference.
 
 Configure the host application's payment webhook route as the Xendit Payment
 Session webhook URL. This package does not add routes or controllers. It
@@ -45,6 +49,11 @@ OpenKOS checks GET /sessions/{payment_session_id} for stale or uncertain
 attempts and maps ACTIVE, COMPLETED, EXPIRED, and CANCELED to the platform
 payment statuses. Webhooks and status lookups use the same persisted attempt
 and accounting flow in the host application.
+
+The package also implements the optional platform currency capability. Hosts
+must treat the declared list as the provider's verified support boundary and
+must not perform currency conversion or advertise currencies not returned by
+the plugin.
 
 See Xendit's [Create a session](https://docs.xendit.co/apidocs/create-session)
 and [Payment Session webhook](https://docs.xendit.co/apidocs/webhook-notification-sent-defined-webhook-url-updates-payment-session)
