@@ -13,7 +13,7 @@ it('registers the Xendit gateway without platform settings', function () {
     $schema = (new XenditGateway)->configurationSchema();
 
     expect($plugin->manifest()->id)->toBe('openkos/payment-xendit')
-        ->and($plugin->manifest()->version)->toBe('0.1.3')
+        ->and($plugin->manifest()->version)->toBe('0.1.5')
         ->and($platform->payments()->gateways()['xendit'])->toBe(XenditGateway::class)
         ->and($platform->settings()->definitions())->toBe([])
         ->and($schema['webhook_auth_mode']['presentation'])->toBe('segmented')

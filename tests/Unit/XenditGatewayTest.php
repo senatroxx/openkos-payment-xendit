@@ -74,6 +74,23 @@ it('creates an IDR Payment Session and returns hosted checkout instructions', fu
     });
 });
 
+it('declares only the verified currency set', function () {
+    expect($this->gateway->supportedCurrencies())->toBe(['IDR'])
+        ->and($this->gateway->supportsCurrency('idr'))->toBeTrue()
+        ->and($this->gateway->supportsCurrency('USD'))->toBeFalse();
+});
+
+it('rejects unsupported currencies before making a request', function () {
+    Http::fake();
+
+    expect(fn () => $this->gateway->createPayment(new PaymentRequest(
+        'invoice-123',
+        new Money(100, 'USD'),
+    )))->toThrow(InvalidArgumentException::class, 'IDR only');
+
+    Http::assertNothingSent();
+});
+
 it('looks up an active Payment Session without requiring a webhook identity', function () {
     Http::fake([
         'https://api.xendit.co/sessions/ps-test-123' => Http::response([
@@ -142,6 +159,25 @@ it('rejects a Payment Session lookup with a mismatched reference', function () {
         providerReference: 'ps-test-123',
         reference: 'invoice-123',
     )))->toThrow(RuntimeException::class, 'does not match');
+});
+
+it('rejects a status response with an unsupported currency', function () {
+    Http::fake([
+        'https://api.xendit.co/sessions/ps-test-123' => Http::response([
+            'payment_session_id' => 'ps-test-123',
+            'reference_id' => 'invoice-123',
+            'session_type' => 'PAY',
+            'mode' => 'PAYMENT_LINK',
+            'status' => 'ACTIVE',
+            'amount' => 100,
+            'currency' => 'USD',
+        ]),
+    ]);
+
+    expect(fn () => $this->gateway->lookupPaymentStatus(new PaymentStatusLookupRequest(
+        providerReference: 'ps-test-123',
+        reference: 'invoice-123',
+    )))->toThrow(RuntimeException::class, 'currency is unsupported');
 });
 
 it('rejects currencies outside the IDR first version', function () {
