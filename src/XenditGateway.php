@@ -28,7 +28,7 @@ final class XenditGateway implements PaymentGateway, PaymentGatewayCurrencySuppo
 {
     private const DEFAULT_BASE_URL = 'https://api.xendit.co';
 
-    private const SUPPORTED_CURRENCIES = ['IDR'];
+    private const SUPPORTED_CURRENCIES = ['IDR', 'PHP', 'VND', 'THB', 'SGD', 'MYR', 'USD'];
 
     private const WEBHOOK_AUTH_BASIC = 'basic';
 
@@ -65,7 +65,7 @@ final class XenditGateway implements PaymentGateway, PaymentGatewayCurrencySuppo
     public function createPayment(PaymentRequest $request): PaymentCreationResult
     {
         if (! $this->supportsCurrency($request->amount->currency)) {
-            throw new InvalidArgumentException('Xendit payments currently support IDR only.');
+            throw new InvalidArgumentException('Xendit does not support this payment currency.');
         }
 
         $this->validateRequestLimits($request);

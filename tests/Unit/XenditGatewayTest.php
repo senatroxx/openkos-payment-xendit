@@ -74,10 +74,11 @@ it('creates an IDR Payment Session and returns hosted checkout instructions', fu
     });
 });
 
-it('declares only the verified currency set', function () {
-    expect($this->gateway->supportedCurrencies())->toBe(['IDR'])
+it('declares the documented Payment Session currency set', function () {
+    expect($this->gateway->supportedCurrencies())->toBe(['IDR', 'PHP', 'VND', 'THB', 'SGD', 'MYR', 'USD'])
         ->and($this->gateway->supportsCurrency('idr'))->toBeTrue()
-        ->and($this->gateway->supportsCurrency('USD'))->toBeFalse();
+        ->and($this->gateway->supportsCurrency('USD'))->toBeTrue()
+        ->and($this->gateway->supportsCurrency('AUD'))->toBeFalse();
 });
 
 it('rejects unsupported currencies before making a request', function () {
@@ -85,8 +86,8 @@ it('rejects unsupported currencies before making a request', function () {
 
     expect(fn () => $this->gateway->createPayment(new PaymentRequest(
         'invoice-123',
-        new Money(100, 'USD'),
-    )))->toThrow(InvalidArgumentException::class, 'IDR only');
+        new Money(100, 'AUD'),
+    )))->toThrow(InvalidArgumentException::class, 'does not support this payment currency');
 
     Http::assertNothingSent();
 });
@@ -170,7 +171,7 @@ it('rejects a status response with an unsupported currency', function () {
             'mode' => 'PAYMENT_LINK',
             'status' => 'ACTIVE',
             'amount' => 100,
-            'currency' => 'USD',
+            'currency' => 'AUD',
         ]),
     ]);
 
@@ -180,11 +181,11 @@ it('rejects a status response with an unsupported currency', function () {
     )))->toThrow(RuntimeException::class, 'currency is unsupported');
 });
 
-it('rejects currencies outside the IDR first version', function () {
+it('rejects currencies outside Payment Session support', function () {
     expect(fn () => $this->gateway->createPayment(new PaymentRequest(
         'invoice-123',
-        new Money(100, 'PHP'),
-    )))->toThrow(InvalidArgumentException::class, 'IDR only');
+        new Money(100, 'AUD'),
+    )))->toThrow(InvalidArgumentException::class, 'does not support this payment currency');
 });
 
 it('fails when Xendit rejects session creation', function () {
@@ -351,7 +352,7 @@ it('rejects unsupported or malformed Payment Session webhooks', function (array 
         'mode' => 'PAYMENT_LINK',
         'status' => 'COMPLETED',
         'amount' => 150000,
-        'currency' => 'USD',
+        'currency' => 'AUD',
     ]]],
 ]);
 
