@@ -1,0 +1,10 @@
+{
+    "id": "openkos/payment-xendit",
+    "name": "Xendit Payments",
+    "version": "0.1.6",
+    "description": "Hosted Xendit Payment Session gateway.",
+    "entry_class": "OpenKOS\\PaymentXendit\\XenditPlugin",
+    "core_version": "^0.2",
+    "php": "^8.3",
+    "dependencies": []
+}
