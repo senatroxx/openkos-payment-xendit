@@ -285,5 +285,6 @@ jobs:
           (cd release && sha256sum -c "$(basename "$checksum_path")")
           gh release create "$GITHUB_REF_NAME" "$zip_path" "$checksum_path" \
             --verify-tag \
+            --repo "$GITHUB_REPOSITORY" \
             --title "$GITHUB_REF_NAME" \
             --generate-notes
