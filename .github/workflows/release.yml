@@ -3,7 +3,7 @@ name: CI
 on:
   push:
     branches: [main]
-    tags: ['v*.*.*']
+    tags: ["v*.*.*"]
   pull_request:
     branches: [main]
 
@@ -19,7 +19,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        php: ['8.4', '8.5']
+        php: ["8.4", "8.5"]
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
@@ -39,7 +39,7 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
         with:
-          php-version: '8.4'
+          php-version: "8.4"
           extensions: mbstring, dom, pdo_sqlite, sqlite3
           coverage: none
       - name: Build and validate runtime artifact
@@ -109,12 +109,20 @@ jobs:
                     continue;
                 }
                 if (! isset($packages[$name])) {
-                    foreach ($packages as $candidate) {
-                        if (isset($candidate["provide"][$name]) || isset($candidate["replace"][$name])) {
-                            continue 2;
+                    $providers = [];
+                    foreach ($packages as $candidateName => $candidate) {
+                        foreach (["provide", "replace"] as $field) {
+                            if (is_array($candidate[$field] ?? null) && array_key_exists($name, $candidate[$field])) {
+                                $providers[] = $candidateName;
+                                break;
+                            }
                         }
                     }
-                    throw new RuntimeException("Locked production dependency [{$name}] is missing.");
+                    if ($providers === []) {
+                        throw new RuntimeException("Locked production dependency [{$name}] is missing.");
+                    }
+                    array_push($pending, ...$providers);
+                    continue;
                 }
                 $selected[$name] = true;
                 foreach (array_keys($packages[$name]["require"] ?? []) as $dependency) {
@@ -137,7 +145,8 @@ jobs:
             --no-interaction \
             --prefer-dist \
             --no-progress \
-            --no-scripts
+            --no-scripts \
+            --no-plugins
 
           cp manifest.json composer.json composer.lock "$artifact_root/"
           cp -a "$build_root/vendor" "$artifact_root/vendor"
@@ -161,8 +170,22 @@ jobs:
                 if (! is_string($package) || ! ($package === "openkos/platform" || $package === "laravel/framework" || str_starts_with($package, "illuminate/") || str_starts_with($package, "laravel/"))) {
                     continue;
                 }
-                $version = is_array($metadata) ? ($metadata["pretty_version"] ?? null) : null;
-                if ((is_string($version) && trim($version) !== "") || ! is_array($metadata) || (! isset($metadata["provided"]) && ! isset($metadata["replaced"]))) {
+                if (! is_array($metadata)) {
+                    fwrite(STDERR, "Malformed host package metadata bundled: {$package}\n");
+                    exit(1);
+                }
+                $version = $metadata["pretty_version"] ?? null;
+                $virtual = false;
+                foreach (["provided", "replaced"] as $field) {
+                    if (array_key_exists($field, $metadata)) {
+                        if (! is_array($metadata[$field]) || ! array_is_list($metadata[$field]) || $metadata[$field] === [] || count(array_filter($metadata[$field], static fn (mixed $range): bool => is_string($range) && trim($range) !== "")) !== count($metadata[$field])) {
+                            fwrite(STDERR, "Malformed host package metadata bundled: {$package}\n");
+                            exit(1);
+                        }
+                        $virtual = true;
+                    }
+                }
+                if ((is_string($version) && trim($version) !== "") || ! $virtual) {
                     fwrite(STDERR, "Forbidden host package metadata bundled: {$package}\n");
                     exit(1);
                 }
@@ -198,7 +221,8 @@ jobs:
             --no-interaction \
             --prefer-dist \
             --no-progress \
-            --no-scripts
+            --no-scripts \
+            --no-plugins
 
           cp "$GITHUB_WORKSPACE/openkos/.env.example" "$GITHUB_WORKSPACE/openkos/.env"
           (
@@ -217,8 +241,16 @@ jobs:
           (
             cd "$GITHUB_WORKSPACE/openkos"
             OPENKOS_PLUGIN_PATH="$runtime_path" php artisan plugin:install "$zip_path" --no-interaction
-            OPENKOS_PLUGIN_PATH="$runtime_path" php artisan plugin:list --no-interaction
           )
+
+          manifest_id="$(jq -er '.id | select(type == "string" and length > 0)' manifest.json)"
+          plugin_list="$(
+            cd "$GITHUB_WORKSPACE/openkos"
+            OPENKOS_PLUGIN_PATH="$runtime_path" php artisan plugin:list --no-interaction
+          )"
+          printf '%s\n' "$plugin_list"
+          printf '%s\n' "$plugin_list" | grep -Fq "$manifest_id"
+          printf '%s\n' "$plugin_list" | grep -Fq 'Enabled'
 
           test "$composer_json_before" = "$(sha256sum "$GITHUB_WORKSPACE/openkos/composer.json" | cut -d ' ' -f1)"
           test "$composer_lock_before" = "$(sha256sum "$GITHUB_WORKSPACE/openkos/composer.lock" | cut -d ' ' -f1)"
@@ -250,6 +282,7 @@ jobs:
           checksum_path="$(find release -maxdepth 1 -type f -name '*.sha256' -print -quit)"
           test -n "$zip_path"
           test -n "$checksum_path"
+          (cd release && sha256sum -c "$(basename "$checksum_path")")
           gh release create "$GITHUB_REF_NAME" "$zip_path" "$checksum_path" \
             --verify-tag \
             --title "$GITHUB_REF_NAME" \
