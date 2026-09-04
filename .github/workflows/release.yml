@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 env:
-  OPENKOS_VALIDATOR_REF: 831acd59a424c76d0a74f41ad6d3dbd3a4478fbf
+  OPENKOS_VALIDATOR_REF: eda620b985f5ddbcc205a72c6c4d997ba8855094
 
 jobs:
   test:
