@@ -81,7 +81,7 @@ jobs:
                 and ((.key | startswith("laravel/")) | not)
                 and ((.key | startswith("ext-")) | not)
             ))
-            | del(.["require-dev"])
+            | del(.["require-dev"], .scripts)
           ' composer.json > "$build_root/composer.json"
 
           php -r '
