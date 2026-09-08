@@ -13,7 +13,7 @@ final class XenditPlugin extends Plugin
         return new PluginManifest(
             id: 'openkos/payment-xendit',
             name: 'Xendit Payments',
-            version: '0.1.6',
+            version: '0.1.7',
             description: 'Hosted Xendit Payment Session gateway.',
             coreVersion: '^0.2',
         );
