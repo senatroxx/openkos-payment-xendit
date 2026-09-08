@@ -148,7 +148,7 @@ jobs:
             --no-scripts \
             --no-plugins
 
-          cp manifest.json composer.json composer.lock "$artifact_root/"
+          cp manifest.json "$build_root/composer.json" "$build_root/composer.lock" "$artifact_root/"
           cp -a "$build_root/vendor" "$artifact_root/vendor"
           for path in src config routes database resources; do
             if [[ -e "$build_root/$path" ]]; then
