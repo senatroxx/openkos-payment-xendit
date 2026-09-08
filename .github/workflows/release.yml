@@ -148,6 +148,7 @@ jobs:
             --no-scripts \
             --no-plugins
 
+          cp manifest.json "$artifact_root/"
           platform_constraint="$(jq -er '.require["openkos/platform"] | select(type == "string" and length > 0)' composer.json)"
           jq --arg platform_constraint "$platform_constraint" '.require["openkos/platform"] = $platform_constraint' \
             "$build_root/composer.json" > "$artifact_root/composer.json"
