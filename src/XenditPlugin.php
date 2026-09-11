@@ -15,7 +15,6 @@ final class XenditPlugin extends Plugin
             name: 'Xendit Payments',
             version: '0.1.13',
             description: 'Hosted Xendit Payment Session gateway.',
-            coreVersion: '^0.2',
         );
     }
 
