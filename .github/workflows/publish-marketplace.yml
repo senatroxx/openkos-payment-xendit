@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   publish:
-    uses: senatroxx/openkos-marketplace-api/.github/workflows/publish-release-to-marketplace.yml@80fa9b611d16de7ce75511e0640e1957a4961ed7
+    uses: senatroxx/openkos-marketplace-api/.github/workflows/publish-release-to-marketplace.yml@a990c1e990ff98e1c18c4711e6d96a7ea2369ee0
     with:
       release_tag: ${{ github.event.release.tag_name }}
       marketplace_url: ${{ vars.OPENKOS_MARKETPLACE_URL }}
