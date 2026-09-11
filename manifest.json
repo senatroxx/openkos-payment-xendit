@@ -1,7 +1,7 @@
 {
     "id": "openkos/payment-xendit",
     "name": "Xendit Payments",
-    "version": "0.1.12",
+    "version": "0.1.13",
     "description": "Hosted Xendit Payment Session gateway.",
     "entry_class": "OpenKOS\\PaymentXendit\\XenditPlugin",
     "core_version": "^0.2",
