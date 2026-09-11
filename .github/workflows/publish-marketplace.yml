@@ -1,0 +1,17 @@
+name: Publish release to Marketplace
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    uses: senatroxx/openkos-marketplace-api/.github/workflows/publish-release-to-marketplace.yml@80fa9b611d16de7ce75511e0640e1957a4961ed7
+    with:
+      release_tag: ${{ github.event.release.tag_name }}
+      marketplace_url: ${{ vars.OPENKOS_MARKETPLACE_URL }}
+    secrets:
+      marketplace_publish_token: ${{ secrets.OPENKOS_MARKETPLACE_PUBLISH_TOKEN }}
