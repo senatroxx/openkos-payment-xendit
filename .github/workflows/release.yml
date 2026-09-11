@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 env:
-  OPENKOS_VALIDATOR_REF: eda620b985f5ddbcc205a72c6c4d997ba8855094
+  OPENKOS_VALIDATOR_REF: fbaf85844a08743aa1a59aa4993562f9d5f0e59a
 
 jobs:
   test:
@@ -53,10 +53,15 @@ jobs:
           composer_name="$(jq -er '.name | select(type == "string" and length > 0)' composer.json)"
           composer_entry="$(jq -er '.extra.openkos.plugin | select(type == "string" and length > 0)' composer.json)"
           plugin_count="$(jq -er '[.extra.openkos.plugin] | map(select(type == "string" and length > 0)) | length' composer.json)"
+          platform_constraint="$(jq -er '.require["openkos/platform"] | select(type == "string" and length > 0)' composer.json)"
+          php_constraint="$(jq -er '.require.php | select(type == "string" and length > 0)' composer.json)"
 
           test "$manifest_id" = "$composer_name"
           test "$manifest_entry" = "$composer_entry"
           test "$plugin_count" -eq 1
+          test -n "$platform_constraint"
+          test -n "$php_constraint"
+          jq -e 'has("core_version") | not' manifest.json >/dev/null
 
           if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
             test "${GITHUB_REF_NAME#v}" = "$manifest_version"
